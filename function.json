@@ -15,7 +15,7 @@
         "identityName": "[toLower(concat('msi-', parameters('functionName')))]",
         "planName": "[toLower(concat('asp-', parameters('functionName')))]",
         "functionName": "[toLower(if(contains(parameters('functionName'), 'func-'), concat('func-', parameters('functionName')), parameters('functionName')))]",
-        "storageAccountName": "[toLower(concat('st', if(contains(parameters('functionName'), '-'), replace(parameters('functionName'), '-', ''), parameters('functionName'))))]",
+        "storageAccountName": "[toLower(concat('st', uniqueString(subscription().id)))]",
         "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
         "tags": {"Application": "Tag Manager"}
     },
