@@ -1,0 +1,40 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "managementGroupName": {
+            "type": "string",
+            "metadata": {
+                "description": "Please provide the management group id - similar to the management group selection above."
+            }
+        },
+        "roleDefinitionID": {
+            "type": "string",
+            "defaultValue": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
+            "metadata": {
+              "description": "Specifies the role definition ID used in the role assignment. The Default is 'Reader'."
+            }
+          },
+          "principalId": {
+            "type": "string",
+            "metadata": {
+              "description": "Specifies the principal ID assigned to the role."
+            }
+          }
+    },
+    "variables": {
+        "managementGroupId": "[tenantResourceId('Microsoft.Management/managementGroups', parameters('managementGroupName'))]",
+        "roleAssignmentName": "[guid(variables('managementGroupId'), parameters('principalId'), parameters('roleDefinitionId'))]"
+    },
+    "resources": [
+        {
+            "name": "[variables('roleAssignmentName')]",
+            "type": "Microsoft.Authorization/roleAssignments",
+            "apiVersion": "2020-10-01-preview",
+            "properties": {
+              "roleDefinitionId": "[tenantResourceId('Microsoft.Authorization/roleDefinitions', parameters('roleDefinitionId'))]",
+              "principalId": "[parameters('principalId')]"
+            }
+          }
+    ]
+  }

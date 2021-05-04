@@ -1,0 +1,94 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "eventGridTopicName": {
+            "type": "string",
+            "metadata": {
+                "description": "The name of the Azure Function that will recieve the Event Grid Topic."
+            },
+            "defaultValue": "tag-manager"
+        },
+        "eventGridSubscriptionName": {
+            "type": "string",
+            "metadata": {
+                "description": "The name of the Event Grid Subscription to send events to the Function."
+            },
+            "defaultValue": "tag-manager"
+        },
+        "functionName": {
+            "type": "string",
+            "metadata": {
+                "description": "The name of the Azure Function that will recieve the Event Grid Topic."
+            },
+            "defaultValue": "func-tag-manager"
+        },
+        "function": {
+            "type": "string",
+            "metadata": {
+                "description": "The name of the Function within the Azure Function that will recieve the Event Grid Topic."
+            },
+            "defaultValue": "set-createdby-tag"
+        },
+        "identityName": {
+            "type": "string",
+            "metadata": {
+                "description": "The name of the Function within the Azure Function that will recieve the Event Grid Topic."
+            },
+            "defaultValue": "msi-tag-manager"
+        }
+    },
+    "functions": [],
+    "variables": {
+        "uniqueString": "[uniqueString(subscription().subscriptionId)]",
+        "eventGridTopic": "[concat('evt-', parameters('eventGridTopicName'),'-',variables('uniqueString'))]",
+        "eventGridSubscriptionName": "[concat('evs-', parameters('eventGridSubscriptionName'),'-',variables('uniqueString'))]"
+    },
+    "resources": [
+        {
+            "name": "[variables('eventGridTopic')]",
+            "type": "Microsoft.EventGrid/systemTopics",
+            "apiVersion": "2020-04-01-preview",
+            "location": "global",
+            "properties": {
+                "source": "[subscription().id]",
+                "topicType": "Microsoft.Resources.Subscriptions"
+            }
+        },
+        {
+            "name": "[concat(variables('eventGridTopic'), '/', variables('eventGridSubscriptionName'))]",
+            "type": "Microsoft.EventGrid/systemTopics/eventSubscriptions",
+            "apiVersion": "2020-04-01-preview",
+            "dependsOn": [
+                "[resourceId('Microsoft.EventGrid/systemTopics', variables('eventGridTopic'))]"
+            ],
+            "properties": {
+                "destination": {
+                    "endpointType": "AzureFunction",
+                    "properties": {
+                        "resourceId": "[concat(resourceId('Microsoft.Web/sites', parameters('functionName')), '/functions/', parameters('function'))]",
+                        "maxEventsPerBatch": 1,
+                        "preferredBatchSizeInKilobytes": 64
+                    }
+                },
+                "filter": {
+                    "includedEventTypes": [
+                        "Microsoft.Resources.ResourceWriteSuccess"
+                    ],
+                    "advancedFilters": [
+                        {
+                            "key": "data.claims.appid",
+                            "operatorType": "StringNotIn",
+                            "values" :[
+                                "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('identityName')), '2018-11-30', 'full').properties.clientid]"
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+
+    ],
+    "outputs": {
+    }
+}

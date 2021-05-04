@@ -1,0 +1,132 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "functionName": {
+            "type": "string",
+            "metadata": {
+                "description": "The name of the Azure Function that will recieve the Event Grid Topic."
+            },
+            "defaultValue": "func-tag-manager"
+        }
+    },
+    "functions": [],
+    "variables": {
+        "identityName": "[toLower(concat('msi-', parameters('functionName')))]",
+        "planName": "[toLower(concat('asp-', parameters('functionName')))]",
+        "functionName": "[toLower(if(contains(parameters('functionName'), 'func-'), concat('func-', parameters('functionName')), parameters('functionName')))]",
+        "storageAccountName": "[toLower(concat('st', if(contains(parameters('functionName'), '-'), replace(parameters('functionName'), '-', ''), parameters('functionName')), uniqueString(subscription().id)))]",
+        "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+    },
+    "resources": [
+        {
+            "name": "[variables('identityName')]",
+            "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+            "apiVersion": "2018-11-30",
+            "location": "[resourceGroup().location]"
+        },
+        {
+            "name": "[variables('planName')]",
+            "type": "Microsoft.Web/serverfarms",
+            "apiVersion": "2018-02-01",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Y1",
+                "capacity": 1
+            },
+            "properties": {
+                "name": "[variables('planName')]"
+            }
+        },
+        {
+            "name": "[variables('storageAccountName')]",
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "location": "[resourceGroup().location]",
+            "kind": "StorageV2",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            }
+        },
+        {
+            "name": "[variables('functionName')]",
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2020-09-01",
+            "location": "[resourceGroup().location]",
+            "kind": "functionapp",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', variables('planName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+                "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]"
+            ],
+            "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                    "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]": {}
+                }
+            },
+            "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('planName'))]",
+                "siteConfig": {
+                    "appSettings": [
+                        {
+                            "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2019-06-01').keys[0].value)]"
+                        },
+                        {
+                            "name": "WEBSITE_CONTENTSHARE",
+                            "value": "[toLower(variables('functionName'))]"
+                        },
+                        {
+                            "name": "AzureWebJobsStorage",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountid'),'2019-06-01').keys[0].value)]"
+                        },
+                        {
+                            "name": "FUNCTIONS_EXTENSION_VERSION",
+                            "value": "~3"
+                        },
+                        {
+                            "name": "FUNCTIONS_WORKER_RUNTIME",
+                            "value": "powershell"
+                        },
+                        {
+                            "name": "AZURE_CLIENT_ID",
+                            "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName')), '2018-11-30', 'full').properties.clientid]"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/sites/config",
+            "apiVersion": "2018-11-01",
+            "name": "[concat(variables('functionName'), '/web')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', variables('functionName'))]"
+            ],
+            "properties": {
+                "powerShellVersion": "~7"
+            }
+        }
+
+    ],
+    "outputs": {
+        "functionAppResourceId": {
+            "type": "string",
+            "value": "[resourceId('Microsoft.Web/sites', variables('functionName'))]"
+        },
+        "managedIdentityName": {
+            "type": "string",
+            "value": "[variables('identityName')]"
+        },
+        "managedIdentityPrincipalId": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName')), '2018-11-30', 'full').properties.principalId]"
+        },
+        "managedIdentityClientId": {
+            "type": "string",
+            "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName')), '2018-11-30', 'full').properties.clientid]"
+        }
+    }
+}
