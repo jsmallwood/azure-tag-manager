@@ -15,21 +15,24 @@
         "identityName": "[toLower(concat('msi-', parameters('functionName')))]",
         "planName": "[toLower(concat('asp-', parameters('functionName')))]",
         "functionName": "[toLower(if(contains(parameters('functionName'), 'func-'), concat('func-', parameters('functionName')), parameters('functionName')))]",
-        "storageAccountName": "[toLower(concat('st', if(contains(parameters('functionName'), '-'), replace(parameters('functionName'), '-', ''), parameters('functionName')), uniqueString(subscription().id)))]",
-        "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+        "storageAccountName": "[toLower(concat('st', if(contains(parameters('functionName'), '-'), replace(parameters('functionName'), '-', ''), parameters('functionName'))))]",
+        "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+        "tags": {"Application": "Tag Manager"}
     },
     "resources": [
         {
             "name": "[variables('identityName')]",
             "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
             "apiVersion": "2018-11-30",
-            "location": "[resourceGroup().location]"
+            "location": "[resourceGroup().location]",
+            "tags": "[variables('tags')]"
         },
         {
             "name": "[variables('planName')]",
             "type": "Microsoft.Web/serverfarms",
             "apiVersion": "2018-02-01",
             "location": "[resourceGroup().location]",
+            "tags": "[variables('tags')]",
             "sku": {
                 "name": "Y1",
                 "capacity": 1
@@ -42,6 +45,7 @@
             "name": "[variables('storageAccountName')]",
             "type": "Microsoft.Storage/storageAccounts",
             "apiVersion": "2019-06-01",
+            "tags": "[variables('tags')]",
             "location": "[resourceGroup().location]",
             "kind": "StorageV2",
             "sku": {
@@ -53,6 +57,7 @@
             "name": "[variables('functionName')]",
             "type": "Microsoft.Web/sites",
             "apiVersion": "2020-09-01",
+            "tags": "[variables('tags')]",
             "location": "[resourceGroup().location]",
             "kind": "functionapp",
             "dependsOn": [
