@@ -1,0 +1,78 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "identityName": {
+        "type": "string",
+        "defaultValue": "msi-tag-contributor"
+      },
+      "forceUpdateTag":{
+        "type": "string",
+        "defaultValue": "[utcNow()]"
+      }
+    },
+    "variables": {
+    },
+    "resources": [
+      {
+        "type": "Microsoft.Resources/deploymentScripts",
+        "apiVersion": "2020-10-01",
+        "name": "getTenantRootGroupName",
+        "location": "[resourceGroup().location]",
+        "identity": {
+            "type": "UserAssigned",
+            "userAssignedIdentities": {
+               "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('identityName'))]": {}
+            }
+        },
+        "kind": "AzurePowerShell",
+        "properties": {
+          "forceUpdateTag": "[parameters('forceUpdateTag')]",
+          "azPowerShellVersion": "5.0",
+          "scriptContent": "
+            Write-Output (Get-AzManagementGroup | Where-Object {$_.DisplayName -eq 'Tenant Root Group'}).Name
+            $DeploymentScriptOutputs = @{}
+            $DeploymentScriptOutputs['text'] = (Get-AzManagementGroup | Where-Object {$_.DisplayName -eq 'Tenant Root Group'}).Name
+          ",
+          "timeout": "PT1H",
+          "cleanupPreference": "OnSuccess",
+          "retentionInterval": "P1D"
+        }
+      },
+      {
+        "type": "Microsoft.Resources/deploymentScripts",
+        "apiVersion": "2020-10-01",
+        "name": "getSubscriptionIds",
+        "location": "[resourceGroup().location]",
+        "kind": "AzurePowerShell",
+        "identity": {
+            "type": "UserAssigned",
+            "userAssignedIdentities": {
+               "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('identityName'))]": {}
+            }
+        },
+        "properties": {
+          "forceUpdateTag": "[parameters('forceUpdateTag')]",
+          "azPowerShellVersion": "5.0",
+          "scriptContent": "
+            Write-Output (Get-AzSubscription).Id
+            $DeploymentScriptOutputs = @{}
+            $DeploymentScriptOutputs['text'] = (Get-AzSubscription).Id
+          ",
+          "timeout": "PT1H",
+          "cleanupPreference": "OnSuccess",
+          "retentionInterval": "P1D"
+        }
+      }
+    ],
+    "outputs": {
+      "tenantrootgroupname": {
+        "value": "[reference('getTenantRootGroupName').outputs.text]",
+        "type": "string"
+      },
+      "subscriptionids": {
+        "value": "[reference('getSubscriptionIds').outputs.text]",
+        "type": "array"
+      }
+    }
+  }
