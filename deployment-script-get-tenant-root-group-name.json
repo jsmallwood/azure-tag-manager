@@ -66,11 +66,11 @@
       }
     ],
     "outputs": {
-      "tenantrootgroupname": {
+      "tenantRootGroupName": {
         "value": "[reference('getTenantRootGroupName').outputs.text]",
         "type": "string"
       },
-      "subscriptionids": {
+      "subscriptionIds": {
         "value": "[reference('getSubscriptionIds').outputs.text]",
         "type": "array"
       }
